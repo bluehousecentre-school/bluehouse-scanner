@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blue House | Live Scanner</title>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #071b33;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 25px 15px;
+}
+
+h1 {
+  color: #d9b76e;
+  letter-spacing: 3px;
+  margin-bottom: 5px;
+}
+
+.subtitle { color: #aebed0; }
+
+#reader {
+  max-width: 440px;
+  width: 100%;
+  margin: 25px auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #102944;
+}
+
+button {
+  background: #d9b76e;
+  color: #071b33;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 5px;
+}
+
+#result {
+  background: #102944;
+  border: 1px solid #d9b76e;
+  padding: 20px;
+  border-radius: 14px;
+  max-width: 440px;
+  margin: 20px auto;
+  overflow-wrap: anywhere;
+}
+
+.success { color: #61e6a3; }
+.error { color: #ff9999; }
+
+#count {
+  color: #d9b76e;
+  font-size: 24px;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<h1>BLUE HOUSE</h1>
+<p class="subtitle">SMART ATTENDANCE · LIVE SCANNER</p>
+
+<button id="startBtn">START LIVE SCANNER</button>
+<button id="stopBtn" hidden>STOP CAMERA</button>
+
+<div id="reader"></div>
+
+<div id="result">
+  Ready to scan student QR badges.
+</div>
+
+<p>Successful scans: <span id="count">0</span></p>
+
+<script>
+let scanner;
+let lastCode = "";
+let lastScan = 0;
+let count = 0;
+
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const result = document.getElementById("result");
+
+function showMessage(message, className = "") {
+  result.textContent = message;
+  result.className = className;
+}
+
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
+  showMessage("Opening camera...");
+
+  try {
+    scanner = new Html5Qrcode("reader");
+
+    await scanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 15,
+        qrbox: (width, height) => {
+          const size = Math.min(260, width * 0.8, height * 0.8);
+          return { width: Math.floor(size), height: Math.floor(size) };
+        }
+      },
+      (code) => {
+        const now = Date.now();
+
+        // Prevent repeated scans of the same badge.
+        if (code === lastCode && now - lastScan < 5000) return;
+
+        lastCode = code;
+        lastScan = now;
+        count++;
+
+        document.getElementById("count").textContent = count;
+
+        showMessage("✓ QR DETECTED: " + code, "success");
+
+        if (navigator.vibrate) navigator.vibrate(150);
+      },
+      () => {}
+    );
+
+    startBtn.hidden = true;
+    stopBtn.hidden = false;
+
+    showMessage("Camera active. Point at a student badge.");
+
+  } catch (error) {
+    showMessage(
+      "Camera error: " +
+      (error?.message || String(error)),
+      "error"
+    );
+
+    startBtn.disabled = false;
+  }
+};
+
+stopBtn.onclick = async () => {
+  if (scanner) {
+    await scanner.stop();
+    scanner.clear();
+  }
+
+  stopBtn.hidden = true;
+  startBtn.hidden = false;
+  startBtn.disabled = false;
+
+  showMessage("Scanner stopped.");
+};
+</script>
+
+</body>
+</html>
