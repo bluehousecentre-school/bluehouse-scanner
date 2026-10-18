@@ -119,6 +119,31 @@ function showMessage(message, className = "") {
   result.className = className;
 }
 
+// -----------------------------------------------------
+// BLUE HOUSE — SEND DETECTED QR TOKEN TO WIX
+// -----------------------------------------------------
+
+function sendQrToWix(code) {
+  // This sends a message only when the scanner is embedded
+  // inside another page. It does not write to the database.
+  if (window.parent !== window) {
+    window.parent.postMessage({
+      type: "blueHouseQrDetected",
+      qrToken: code
+    }, "*");
+
+    statusEl.textContent =
+      "QR detected. Message sent to the parent page.";
+  } else {
+    statusEl.textContent =
+      "QR detected. Standalone scanner test mode.";
+  }
+}
+
+// -----------------------------------------------------
+// ORIGINAL WORKING QR DETECTION
+// -----------------------------------------------------
+
 function onDetected(code) {
   if (!running) return;
 
@@ -135,11 +160,21 @@ function onDetected(code) {
   count++;
 
   countEl.textContent = count;
+
   showMessage("✓ QR DETECTED: " + code, "success");
-  statusEl.textContent = "Scan successful. Ready for next student.";
+
+  statusEl.textContent =
+    "Scan successful. Ready for next student.";
 
   if (navigator.vibrate) navigator.vibrate(150);
+
+  // NEW: Forward the detected token to the Wix integration.
+  sendQrToWix(code);
 }
+
+// -----------------------------------------------------
+// ORIGINAL WORKING LIVE CAMERA
+// -----------------------------------------------------
 
 startBtn.onclick = async () => {
   if (running) return;
@@ -154,7 +189,9 @@ startBtn.onclick = async () => {
     }
 
     scanner = new Html5Qrcode("reader", {
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE
+      ],
       verbose: false,
       useBarCodeDetectorIfSupported: true
     });
@@ -163,37 +200,50 @@ startBtn.onclick = async () => {
       { facingMode: "environment" },
       {
         fps: 20,
+
         qrbox: (width, height) => {
           const size = Math.floor(
             Math.min(width * 0.92, height * 0.92, 380)
           );
 
-          return { width: size, height: size };
+          return {
+            width: size,
+            height: size
+          };
         },
+
         disableFlip: false,
         aspectRatio: 1.333334,
+
         videoConstraints: {
           facingMode: "environment",
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         }
       },
+
       onDetected,
+
       () => {}
     );
 
     running = true;
+
     startBtn.hidden = true;
     stopBtn.hidden = false;
 
-    showMessage("Camera active. Point at Adam's QR badge.");
+    showMessage(
+      "Camera active. Point at Adam's QR badge."
+    );
+
     statusEl.textContent = "LIVE SCANNING ACTIVE";
 
   } catch (error) {
     running = false;
 
     showMessage(
-      "Camera error: " + (error?.message || String(error)),
+      "Camera error: " +
+      (error?.message || String(error)),
       "error"
     );
 
@@ -201,6 +251,10 @@ startBtn.onclick = async () => {
     startBtn.disabled = false;
   }
 };
+
+// -----------------------------------------------------
+// STOP CAMERA
+// -----------------------------------------------------
 
 stopBtn.onclick = async () => {
   running = false;
@@ -218,6 +272,7 @@ stopBtn.onclick = async () => {
 
   stopBtn.hidden = true;
   stopBtn.disabled = false;
+
   startBtn.hidden = false;
   startBtn.disabled = false;
 
